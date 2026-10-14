@@ -12,7 +12,8 @@ pytestmark = pytest.mark.db
 
 @pytest.fixture(scope="module")
 def conn(db_url):
-    with connect(db_url) as c:
+    # Plain SQL only; vector=False so this skips cleanly on a fresh DB without the extension.
+    with connect(db_url, vector=False) as c:
         exists = c.execute("SELECT to_regclass('chunks') IS NOT NULL").fetchone()[0]
         if not exists or not c.execute("SELECT EXISTS (SELECT 1 FROM chunks)").fetchone()[0]:
             pytest.skip("database not ingested; run `uv run python -m clausewitz.ingest.load_db`")
