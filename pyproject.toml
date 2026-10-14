@@ -9,6 +9,11 @@ dependencies = [
     "numpy>=2.0",
     "pydantic>=2.8",
     "pydantic-settings>=2.4",
+    "sentence-transformers>=3.0",
+    "torch>=2.4",
+    "bm25s>=0.2",
+    "pystemmer>=2.2",
+    "tqdm>=4.66",
 ]
 
 [dependency-groups]
@@ -36,3 +41,12 @@ testpaths = ["tests"]
 markers = [
     "db: needs a running Postgres (docker compose up -d db); skipped if unreachable",
 ]
+
+# CPU-only PyTorch on Linux (CI, Cloud Run): avoids multi-GB CUDA wheels. macOS wheels are CPU/MPS already.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]

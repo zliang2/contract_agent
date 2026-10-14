@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     verify_model: str = ""
     bm25_index_path: str = "indexes/bm25"
     price_table_path: str = "evals/prices.json"
+    cuad_path: str = "data/raw/CUAD_v1/CUAD_v1.json"
+    embed_model: str = "BAAI/bge-small-en-v1.5"
 
 
 @lru_cache
