@@ -74,3 +74,38 @@ Each entry: what was decided, why, and alternatives considered.
 ### CPU-only PyTorch on Linux
 - **What:** `[tool.uv.sources]` pins `torch` to the PyTorch CPU index on Linux.
 - **Why:** default Linux wheels bundle multi-GB CUDA libraries that CI and Cloud Run (CPU) never use. The lock has zero `nvidia-*` packages.
+
+## Phase 2 — Retrieval
+
+### Eval scope: retrieve within the case's contract
+- **What:** every eval case passes its `contract_id`; retrieval only ranks that contract's chunks. Corpus-wide retrieval is supported (`contract_id=None`) but not what recall@k measures.
+- **Why:** every CUAD question is about one specific contract ("this contract"), and the UI picks a contract before asking. Corpus-wide search would mostly measure whether retrieval finds the right *contract*, which is a different problem.
+- **Consequence:** 88 of 510 contracts have ≤ 8 chunks, where top-8 is the whole contract and recall@8 is trivially 1. So reports also give an exact random-8 baseline and recall@8 restricted to contracts with > 8 chunks.
+- **Alternatives:** corpus-wide cases (harder, but not the product's use case).
+
+### BM25 contract filter: score all chunks, mask, then take top k
+- **Why:** `bm25s.get_scores` returns scores for all 18k chunks in about a millisecond, so masking by contract before the top-k cut is exact and cheap. Retrieving a global top-k and filtering afterward would return fewer than k (or zero) chunks for most contracts. IDF stays corpus-wide (510 contracts), which is more stable than per-contract IDF over ~36 chunks.
+- **Zero-score chunks are dropped**, so BM25 may return fewer than k; RRF handles short lists.
+
+### Vector contract filter: exact scan via a MATERIALIZED CTE; HNSW only for corpus-wide
+- **Why:** pgvector applies `WHERE` after its approximate HNSW search, so a filtered query over one contract's ~36 chunks out of 18k can return fewer than k rows or miss true neighbors. pgvector 0.8 iterative scans mitigate this but still approximate. A contract has 1–253 chunks, so exact distance is cheap and always correct (tested against brute force).
+- **Alternatives:** `hnsw.iterative_scan` (approximate); per-contract partial indexes (510 indexes).
+
+### bge query instruction prefix
+- **What:** questions are embedded as `"Represent this sentence for searching relevant passages: " + question`; chunks have no prefix.
+- **Why:** this is how bge-v1.5 is documented for query→passage retrieval.
+- **Alternatives:** no prefix (the model card says v1.5 works without it, with slightly lower scores). Untested here — candidate for an ablation.
+
+### RRF with k = 60, ties broken by chunk id
+- **Why:** RRF uses only ranks, so BM25 scores and cosine similarities need no normalization; k = 60 is the value from Cormack et al. (2009) and the spec. Breaking ties by id makes results deterministic, which the eval relies on.
+- **Alternatives:** weighted score fusion (needs score normalization and a tuned weight).
+
+### Rerank the top 50 fused candidates, keep 8
+- **Why:** the spec fixes 50 per retriever and 8 final, but not the rerank pool size. 50 bounds cross-encoder cost (about 150 ms median per question on a laptop) while covering a typical contract (36 chunks on average). The report includes recall@50 of the fused pool, which is the upper bound on what reranking can reach.
+
+### Eval runs the pipeline once per case and reads every mode from it
+- **What:** one `rerank`-mode run per case; BM25-only, vector-only and hybrid top-k are read from its per-stage rankings.
+- **Why:** each stage is deterministic, so this equals running the modes separately at a quarter of the cost.
+
+### Reports record git commit and dirty flag
+- **Why:** CLAUDE.md requires every quoted number to trace to a commit. Reports from a dirty tree or with `--limit` get suffixes in the filename and are not quoted.

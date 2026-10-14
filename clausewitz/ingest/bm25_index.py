@@ -16,12 +16,21 @@ import Stemmer
 
 MAPPING_FILE = "chunk_mapping.json"
 
+STOPWORDS = "en"
 _stemmer = Stemmer.Stemmer("english")
 
 
 def tokenize(texts: list[str]) -> bm25s.tokenization.Tokenized:
-    """Lowercase, drop English stopwords, Snowball-stem. Used for both chunks and queries."""
-    return bm25s.tokenize(texts, stopwords="en", stemmer=_stemmer, show_progress=False)
+    """Lowercase, drop English stopwords, Snowball-stem. Used to index chunks."""
+    return bm25s.tokenize(texts, stopwords=STOPWORDS, stemmer=_stemmer, show_progress=False)
+
+
+def tokenize_query(text: str) -> list[str]:
+    """Same normalization as `tokenize`, returned as strings for `BM25.get_scores`."""
+    (tokens,) = bm25s.tokenize(
+        [text], stopwords=STOPWORDS, stemmer=_stemmer, return_ids=False, show_progress=False
+    )
+    return tokens
 
 
 @dataclass
