@@ -109,3 +109,10 @@ Each entry: what was decided, why, and alternatives considered.
 
 ### Reports record git commit and dirty flag
 - **Why:** CLAUDE.md requires every quoted number to trace to a commit. Reports from a dirty tree or with `--limit` get suffixes in the filename and are not quoted.
+
+### Full evals run on GitHub Actions, sharded 8 ways
+- **What:** `eval-retrieval.yml` (manual trigger) ingests CUAD once, dumps the database, restores it into 8 parallel jobs that each run `run_eval --shard I/8`, and merges the shard reports with `evals.merge_reports`.
+- **Why:** the full dev eval (~5,400 cross-encoder reranks) is 15–25 minutes of sustained GPU load, which overheated the development laptop (a fanless MacBook Air). The repo is public, so hosted runners are free. Runners are CPU-only, so the work is split into 8 shards to keep wall-clock time reasonable. One shared dump keeps every shard on identical data and chunk ids.
+- **Reports store per-case records** (the first relevant rank per mode, chunk counts, timings), and every metric is computed from those records. So merged metrics equal single-run metrics (checked: identical apart from latency), and anyone can recompute a number from the report.
+- **Latency caveat:** latencies in CI reports are from CPU runners, not a laptop or Cloud Run.
+- **Alternatives:** run locally in batches with cool-down pauses (slow, manual); evaluate a random sample (noisier); a cloud GPU VM (costs money, more setup).

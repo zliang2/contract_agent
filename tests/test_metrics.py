@@ -29,3 +29,13 @@ def test_random_hit_probability_matches_formula_and_edges():
 def test_percentiles():
     p = percentiles([float(x) for x in range(1, 101)])
     assert p["p50"] == pytest.approx(50.5) and p["p95"] == pytest.approx(95.05)
+
+
+def test_first_relevant_rank_agrees_with_hit_at_k():
+    from evals.metrics import first_relevant_rank
+
+    ranked = [(0, 10), (100, 110), (200, 210)]
+    for gold in ([(205, 207)], [(0, 1)], [(500, 600)], []):
+        rank = first_relevant_rank(ranked, gold)
+        for k in (1, 2, 3):
+            assert hit_at_k(ranked, gold, k) == (rank is not None and rank <= k)

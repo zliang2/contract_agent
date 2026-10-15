@@ -40,3 +40,15 @@ def percentiles(values: list[float]) -> dict[str, float]:
         return {"p50": float("nan"), "p95": float("nan")}
     p50, p95 = np.percentile(values, [50, 95])
     return {"p50": float(p50), "p95": float(p95)}
+
+
+def first_relevant_rank(ranked: list[tuple[int, int]], gold: list[tuple[int, int]]) -> int | None:
+    """1-based rank of the first chunk overlapping a gold span, or None if none does.
+
+    hit_at_k(ranked, gold, k) == (rank is not None and rank <= k), so storing this one
+    number per case lets recall@k for any k be recomputed later (e.g. after merging shards).
+    """
+    for rank, span in enumerate(ranked, start=1):
+        if is_relevant(span, gold):
+            return rank
+    return None
