@@ -116,3 +116,7 @@ Each entry: what was decided, why, and alternatives considered.
 - **Reports store per-case records** (the first relevant rank per mode, chunk counts, timings), and every metric is computed from those records. So merged metrics equal single-run metrics (checked: identical apart from latency), and anyone can recompute a number from the report.
 - **Latency caveat:** latencies in CI reports are from CPU runners, not a laptop or Cloud Run.
 - **Alternatives:** run locally in batches with cool-down pauses (slow, manual); evaluate a random sample (noisier); a cloud GPU VM (costs money, more setup).
+
+### Phase 2 result: recorded as measured, reranker kept pending review
+- **What:** the first full dev eval showed hybrid + rerank (recall@8 0.731) below hybrid without it (0.759) and BM25 alone (0.771). The pipeline still defaults to `rerank` mode, as the spec says.
+- **Why not change it now:** changing the production path is a design decision for review, and any fix should be measured on dev before it is adopted. Options are listed in `docs/results.md`.
