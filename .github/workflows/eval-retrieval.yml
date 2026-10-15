@@ -1,6 +1,7 @@
-# Full retrieval eval on GitHub-hosted runners (manual). Ingests CUAD once, evaluates
-# in 8 parallel shards against the same restored database, then merges the shard
-# reports into one report (uploaded as the `retrieval-report` artifact).
+# Full retrieval eval on GitHub-hosted runners (manual). Ingests CUAD once (cached until
+# ingestion code or dependencies change), evaluates in 8 parallel shards against the same
+# restored database, then merges the shard reports into one report (uploaded as the
+# `retrieval-report` artifact).
 name: eval-retrieval
 
 on:
@@ -11,6 +12,11 @@ on:
         type: choice
         options: [dev, test]
         default: dev
+      question_style:
+        description: "Eval question wording"
+        type: choice
+        options: [plain, cuad_template]
+        default: plain
 
 env:
   DATABASE_URL: postgresql://clausewitz:clausewitz@localhost:5432/clausewitz
@@ -30,6 +36,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked
+      - name: Restore cached ingestion
+        id: ingested
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/db.dump
+            data/raw/CUAD_v1/CUAD_v1.json
+            indexes/bm25
+          # Any change to ingestion code, schema, settings or locked deps re-ingests.
+          key: ingested-${{ hashFiles('clausewitz/ingest/**', 'clausewitz/schema.sql', 'clausewitz/config.py', 'clausewitz/db.py', 'uv.lock') }}
       - uses: actions/cache@v4
         with:
           path: data/raw
@@ -39,12 +55,16 @@ jobs:
           path: ~/.cache/huggingface
           key: hf-models-${{ hashFiles('clausewitz/config.py', 'clausewitz/retrieval/rerank.py') }}
       - name: Download CUAD and ingest
+        if: steps.ingested.outputs.cache-hit != 'true'
         run: |
           uv run python -m clausewitz.ingest.load_cuad --download
           uv run python -m clausewitz.ingest.load_db
-      - name: Warm reranker model cache
-        run: uv run python -c "from clausewitz.retrieval.rerank import get_model; get_model()"
+      - name: Warm model cache
+        run: |
+          uv run python -c "from clausewitz.ingest.embed import get_model; get_model()"
+          uv run python -c "from clausewitz.retrieval.rerank import get_model; get_model()"
       - name: Dump database
+        if: steps.ingested.outputs.cache-hit != 'true'
         run: |
           docker run --rm --network host -e PGPASSWORD=clausewitz -v "$PWD/data:/out" $PG_IMAGE \
             pg_dump -h localhost -U clausewitz -Fc -f /out/db.dump clausewitz
@@ -90,7 +110,7 @@ jobs:
         run: |
           test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
           uv run python -m evals.run_eval --split ${{ inputs.split }} --stage retrieval \
-            --shard ${{ matrix.shard }}/8
+            --shard ${{ matrix.shard }}/8 --question-style ${{ inputs.question_style }}
       - uses: actions/upload-artifact@v4
         with:
           name: shard-${{ matrix.shard }}
@@ -114,4 +134,4 @@ jobs:
         with:
           name: retrieval-report
           retention-days: 90
-          path: evals/reports/*_merged8.json
+          path: evals/reports/*merged8*.json

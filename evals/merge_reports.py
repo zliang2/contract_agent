@@ -48,6 +48,8 @@ def main(paths: list[str]) -> Path:
     report = merge([json.loads(Path(p).read_text()) for p in paths])
     c = report["config"]
     name = f"{report['date'][:10]}_{c['split']}_{c['stage']}_{report['git']['commit'][:7]}"
+    if c.get("question_style", "plain") != "plain":
+        name += f"_{c['question_style']}"
     if c["limit"]:
         name += f"_limit{c['limit']}"
     name += f"_merged{len(report['command'])}"  # never overwrite an unsharded run's report

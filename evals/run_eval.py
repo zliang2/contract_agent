@@ -1,7 +1,7 @@
 """Run an evaluation and write a JSON report to evals/reports/ (docs/SPEC.md §7).
 
     uv run python -m evals.run_eval --split dev --stage retrieval
-        [--subset FILE] [--limit N] [--shard I/N]
+        [--subset FILE] [--limit N] [--shard I/N] [--question-style plain|cuad_template]
 
 Retrieval stage: for every answerable case, retrieve within the case's contract and
 measure recall@k for BM25-only, vector-only, hybrid (RRF) and hybrid + rerank. The
@@ -34,7 +34,7 @@ from clausewitz import pipeline
 from clausewitz.config import get_settings
 from clausewitz.db import connect
 from clausewitz.retrieval.rerank import RERANK_MODEL
-from evals.build_cases import build_cases
+from evals.build_cases import QUESTION_STYLES, build_cases
 from evals.metrics import first_relevant_rank, is_relevant, percentiles, random_hit_probability
 
 REPORTS_DIR = Path("evals/reports")
@@ -168,6 +168,7 @@ def main(argv: list[str] | None = None) -> Path:
     ap.add_argument("--subset", help="JSON list of {title, clause_type}")
     ap.add_argument("--limit", type=int, help="first N answerable cases (smoke runs)")
     ap.add_argument("--shard", type=parse_shard, help="I/N: run every Nth case starting at I")
+    ap.add_argument("--question-style", choices=QUESTION_STYLES, default="plain")
     ap.add_argument("--no-verify", action="store_true")
     ap.add_argument("--model")
     args = ap.parse_args(argv)
@@ -176,7 +177,7 @@ def main(argv: list[str] | None = None) -> Path:
 
     started = time.time()
     with connect() as conn:
-        cases = build_cases(conn, args.split, args.subset)
+        cases = build_cases(conn, args.split, args.subset, args.question_style)
         answerable = [c for c in cases if c.answerable]
         if args.limit:
             answerable = answerable[: args.limit]
@@ -199,6 +200,7 @@ def main(argv: list[str] | None = None) -> Path:
             "limit": args.limit,
             "shard": "/".join(map(str, args.shard)) if args.shard else None,
             "scope": "single contract (contract_id given)",
+            "question_style": args.question_style,
             "candidates_k": pipeline.CANDIDATES_K,
             "rerank_candidates": pipeline.RERANK_CANDIDATES,
             "final_k": FINAL_K,
@@ -210,6 +212,8 @@ def main(argv: list[str] | None = None) -> Path:
         "records": records,
     }
     name = f"{report['date'][:10]}_{args.split}_{args.stage}_{git['commit'][:7]}"
+    if args.question_style != "plain":
+        name += f"_{args.question_style}"
     if args.limit:
         name += f"_limit{args.limit}"
     if args.shard:

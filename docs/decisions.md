@@ -120,3 +120,12 @@ Each entry: what was decided, why, and alternatives considered.
 ### Phase 2 result: recorded as measured, reranker kept pending review
 - **What:** the first full dev eval showed hybrid + rerank (recall@8 0.731) below hybrid without it (0.759) and BM25 alone (0.771). The pipeline still defaults to `rerank` mode, as the spec says.
 - **Why not change it now:** changing the production path is a design decision for review, and any fix should be measured on dev before it is adopted. Options are listed in `docs/results.md`.
+
+### Eval questions: "clause type: details" instead of CUAD's annotation template (spec deviation)
+- **What:** `build_cases` rewrites each CUAD question from `Highlight the parts (if any) of this contract related to "X" that should be reviewed by a lawyer. Details: D` to `X: D` (all 41 match the template; tested). `--question-style cuad_template` keeps the verbatim text. Spec §7 says "use CUAD's question text"; this keeps its content and drops the shared wrapper.
+- **Why:** the template is the instruction the lawyers saw while annotating, not a question a user of this system would type. The first dev run (verbatim template) showed the ms-marco reranker, trained on short search queries, lowering recall. The rewrite is applied identically to every retrieval mode and to every later stage, so the comparison stays fair. The verbatim-template results stay in `docs/results.md`.
+- **Alternatives:** keep the template (measures robustness to an input users won't send); rewrite only the reranker's query (hides the issue inside one stage); hand-write new questions (no longer CUAD's wording, and hard to defend as unbiased).
+
+### Cache the ingested database in Actions
+- **What:** the ingest job caches `db.dump`, the BM25 index and CUAD JSON, keyed on a hash of the ingestion code, schema, settings and `uv.lock`.
+- **Why:** ingestion takes about 42 minutes on a CPU runner and only changes when that code does. The key ensures a stale database is never reused after an ingestion change.
