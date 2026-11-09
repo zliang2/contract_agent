@@ -129,7 +129,10 @@ jobs:
           pattern: shard-*
           path: shards
           merge-multiple: true
-      - run: uv run python -m evals.merge_reports shards/*.json
+      - name: Merge shards
+        run: |
+          rm -f evals/reports/*.json  # committed reports must not be re-uploaded as this run's
+          uv run python -m evals.merge_reports shards/*.json
       - uses: actions/upload-artifact@v4
         with:
           name: retrieval-report
