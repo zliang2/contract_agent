@@ -169,3 +169,16 @@ Each entry: what was decided, why, and alternatives considered.
 ### Sampled LLM evals
 - **What:** `--sample N --seed S` evaluates a fixed random sample of cases; the report records the sample size and seed.
 - **Why:** budget. The user doesn't want to spend money, and full splits need thousands of paid calls per model. Results from samples are labeled as samples.
+
+### First LLM runs use Gemini only, on the free AI Studio tier
+- **What:** generator `gemini-3.5-flash`, verifier `gemini-3.1-flash-lite`, judge `gemini-3.5-flash-lite`, all through a free Google AI Studio key (`GEMINI_API_KEY`).
+- **Why:** the user doesn't want to spend money; AI Studio's free tier costs $0. The judge differs from both the generator and the verifier, so no model grades its own output. Its accuracy is checked against hand labels rather than assumed.
+- **How the models were chosen:** one tiny structured-output call to each listed model on 2026-11-09. `gemini-3.5-flash`, `3.5-flash-lite` and `3.1-flash-lite` answered in 1–5 s. `3.6/3.7/3.8-flash` were overloaded (503s, then 94–134 s per call). `gemini-4-argon` returned a quota error on the free tier, and the `2.5` models aren't offered to new users.
+- **Consequence for the resume:** the benchmark can only include Gemini models unless an Anthropic key is added later.
+
+### Gemini calls retry 429/500/503 with exponential backoff
+- **Why:** free-tier keys hit per-minute limits and overloaded models return 503s. Latency is recorded for the successful attempt only, so waiting out rate limits isn't reported as model latency.
+
+### Caveat: "should refuse" = "no gold span" is noisy
+- **What:** kept as the spec defines it, but reported with this caveat.
+- **Why:** the first smoke run showed two no-gold cases where the model gave a correct, cited answer. One was a correct "no" (Termination For Convenience: the contract only allows termination for cause, and the model said so). The other quoted a clause that looks like an IP assignment CUAD didn't label for that category. So `refusal_accuracy` understates the system on yes/no clause types. The hand-labeled sample can measure how often this happens; the definition is not changed to improve the number.

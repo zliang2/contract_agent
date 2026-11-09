@@ -103,3 +103,38 @@ def test_get_provider_routes_by_prefix():
         get_provider("")
     with pytest.raises(ValueError, match="no provider"):
         get_provider("gpt-x")
+
+
+def test_gemini_retries_rate_limits_then_succeeds():
+    from google.genai import errors
+
+    class Flaky(FakeGeminiClient):
+        def __init__(self):
+            super().__init__(gemini_response())
+            self.n = 0
+
+        def generate_content(self, **kwargs):
+            self.n += 1
+            if self.n < 3:
+                raise errors.APIError(429, {"error": {"message": "rate limited"}})
+            return self.response
+
+    client = Flaky()
+    provider = GeminiProvider(client)
+    waits = []
+    provider.sleep = waits.append
+    r = provider.complete_json("gemini-x", "s", "u", GeneratedAnswer, 5)
+    assert r.text == '{"a": 2}' and client.n == 3 and waits == [4.0, 8.0]
+
+
+def test_gemini_does_not_retry_bad_requests():
+    from google.genai import errors
+
+    class Bad(FakeGeminiClient):
+        def generate_content(self, **kwargs):
+            raise errors.APIError(400, {"error": {"message": "bad"}})
+
+    provider = GeminiProvider(Bad(None))
+    provider.sleep = lambda s: None
+    with pytest.raises(errors.APIError):
+        provider.complete_json("gemini-x", "s", "u", GeneratedAnswer, 5)

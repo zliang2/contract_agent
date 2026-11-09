@@ -98,6 +98,11 @@ class AnthropicProvider:
 
 
 class GeminiProvider:
+    # Free-tier keys hit per-minute limits often; retry 429/5xx with backoff. Latency is
+    # measured on the successful attempt only, so rate-limit waits don't count as latency.
+    MAX_ATTEMPTS = 8
+    sleep = staticmethod(time.sleep)
+
     def __init__(self, client=None):
         if client is None:
             from google import genai
@@ -114,19 +119,25 @@ class GeminiProvider:
         self._client = client
 
     def complete_json(self, model, system, user, schema, max_tokens) -> LLMResult:
-        from google.genai import types
+        from google.genai import errors, types
 
-        t = time.perf_counter()
-        response = self._client.models.generate_content(
-            model=model,
-            contents=user,
-            config=types.GenerateContentConfig(
-                system_instruction=system,
-                max_output_tokens=max_tokens,
-                response_mime_type="application/json",
-                response_json_schema=json_schema(schema),
-            ),
+        config = types.GenerateContentConfig(
+            system_instruction=system,
+            max_output_tokens=max_tokens,
+            response_mime_type="application/json",
+            response_json_schema=json_schema(schema),
         )
+        for attempt in range(self.MAX_ATTEMPTS):
+            t = time.perf_counter()
+            try:
+                response = self._client.models.generate_content(
+                    model=model, contents=user, config=config
+                )
+                break
+            except errors.APIError as e:
+                if e.code not in (429, 500, 503) or attempt == self.MAX_ATTEMPTS - 1:
+                    raise
+                self.sleep(min(60.0, 4.0 * 2**attempt))
         latency = (time.perf_counter() - t) * 1000
         usage = response.usage_metadata
         candidate = response.candidates[0] if response.candidates else None
