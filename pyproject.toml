@@ -14,6 +14,8 @@ dependencies = [
     "bm25s>=0.2",
     "pystemmer>=2.2",
     "tqdm>=4.66",
+    "anthropic>=1.0",
+    "google-genai>=1.0",
 ]
 
 [dependency-groups]

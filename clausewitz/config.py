@@ -15,8 +15,11 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://clausewitz:clausewitz@localhost:5432/clausewitz"
     anthropic_api_key: str = ""
     google_cloud_project: str = ""
+    google_cloud_location: str = "global"
+    gemini_api_key: str = ""  # if set, Gemini uses the AI Studio API instead of Vertex AI
     generate_model: str = ""
     verify_model: str = ""
+    judge_model: str = ""  # eval-only: independent grounding judge (see evals/judge.py)
     bm25_index_path: str = "indexes/bm25"
     price_table_path: str = "evals/prices.json"
     cuad_path: str = "data/raw/CUAD_v1/CUAD_v1.json"

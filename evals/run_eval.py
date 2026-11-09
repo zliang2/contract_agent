@@ -2,6 +2,10 @@
 
     uv run python -m evals.run_eval --split dev --stage retrieval
         [--subset FILE] [--limit N] [--shard I/N] [--question-style plain|cuad_template]
+    uv run python -m evals.run_eval --split dev --stage full --sample 50 [--seed 0]
+        [--model GEN] [--verify-model M] [--judge-model M] [--no-verify]
+
+Full stage: see evals/full_eval.py for the metric definitions. It makes paid LLM calls.
 
 Retrieval stage: for every answerable case, retrieve within the case's contract and
 measure recall@k for BM25-only, vector-only, hybrid (RRF) and hybrid + rerank. The
@@ -21,6 +25,7 @@ metrics. Numbers quoted in docs must come from a complete report from a clean tr
 import argparse
 import json
 import platform
+import random
 import subprocess
 import sys
 import time
@@ -169,11 +174,15 @@ def main(argv: list[str] | None = None) -> Path:
     ap.add_argument("--limit", type=int, help="first N answerable cases (smoke runs)")
     ap.add_argument("--shard", type=parse_shard, help="I/N: run every Nth case starting at I")
     ap.add_argument("--question-style", choices=QUESTION_STYLES, default="plain")
-    ap.add_argument("--no-verify", action="store_true")
-    ap.add_argument("--model")
+    ap.add_argument("--sample", type=int, help="random sample of N cases (seeded)")
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--no-verify", action="store_true", help="full stage: skip verifier calls")
+    ap.add_argument("--model", help="generation model (default GENERATE_MODEL)")
+    ap.add_argument("--verify-model", help="default VERIFY_MODEL")
+    ap.add_argument("--judge-model", help="default JUDGE_MODEL")
     args = ap.parse_args(argv)
     if args.stage == "full":
-        sys.exit("--stage full arrives in Phase 3")
+        return main_full(args, argv)
 
     started = time.time()
     with connect() as conn:
@@ -226,6 +235,120 @@ def main(argv: list[str] | None = None) -> Path:
         print("WARNING: working tree is dirty; don't quote these numbers.")
     print(f"report: {path}")
     return path
+
+
+def sample_cases(cases, n: int, seed: int):
+    """Deterministic sample of n cases (all clause types and refuse/answerable mixed)."""
+    if n >= len(cases):
+        return list(cases)
+    picked = random.Random(seed).sample(range(len(cases)), n)
+    return [cases[i] for i in sorted(picked)]
+
+
+def main_full(args, argv) -> Path:
+    from clausewitz.pricing import load_prices
+    from evals.full_eval import CONDITIONS, full_metrics, run_full_cases
+
+    settings = get_settings()
+    gen_model = args.model or settings.generate_model
+    ver_model = args.verify_model or settings.verify_model
+    judge_model = args.judge_model or settings.judge_model
+    for name, value in (("generation", gen_model), ("judge", judge_model)) + (
+        () if args.no_verify else (("verify", ver_model),)
+    ):
+        if not value:
+            sys.exit(f"no {name} model: set it in .env or pass it on the command line")
+
+    started = time.time()
+    with connect() as conn:
+        cases = build_cases(conn, args.split, args.subset, args.question_style)
+        n_total = len(cases)
+        if args.sample:
+            cases = sample_cases(cases, args.sample, args.seed)
+        if args.limit:
+            cases = cases[: args.limit]
+        if args.shard:
+            i, n = args.shard
+            cases = cases[i::n]
+        records = run_full_cases(
+            conn, cases, gen_model, ver_model, judge_model, verify=not args.no_verify
+        )
+
+    prices = load_prices()
+    conditions = ("off",) if args.no_verify else CONDITIONS
+    git = git_state()
+    report = {
+        "command": "python -m evals.run_eval " + " ".join(sys.argv[1:] if argv is None else argv),
+        "git": git,
+        "date": datetime.now(UTC).isoformat(timespec="seconds"),
+        "duration_s": round(time.time() - started, 1),
+        "environment": environment(),
+        "config": {
+            "split": args.split,
+            "stage": "full",
+            "subset": args.subset,
+            "sample": args.sample,
+            "seed": args.seed,
+            "limit": args.limit,
+            "shard": "/".join(map(str, args.shard)) if args.shard else None,
+            "scope": "single contract (contract_id given)",
+            "question_style": args.question_style,
+            "generate_model": gen_model,
+            "verify_model": None if args.no_verify else ver_model,
+            "judge_model": judge_model,
+            "judge_differs_from_verifier": judge_model != ver_model,
+            "final_k": FINAL_K,
+            "price_table": {"source": prices.get("source"), "as_of": prices.get("as_of")},
+        },
+        "cases": {"total_in_split": n_total, "evaluated": len(records)},
+        "metrics": full_metrics(records, prices, conditions),
+        "records": records,
+    }
+    slug = gen_model.replace("/", "-")
+    name = f"{report['date'][:10]}_{args.split}_full_{slug}_{git['commit'][:7]}"
+    for flag, value in (("sample", args.sample), ("limit", args.limit)):
+        if value:
+            name += f"_{flag}{value}"
+    if args.shard:
+        name += f"_shard{args.shard[0]}of{args.shard[1]}"
+    if git["dirty"]:
+        name += "_dirty"
+    path = write_report(report, name)
+    print_full_summary(report["metrics"])
+    if git["dirty"]:
+        print("WARNING: working tree is dirty; don't quote these numbers.")
+    print(f"report: {path}")
+    return path
+
+
+def print_full_summary(m: dict) -> None:
+    def f(x, pct=False):
+        if x is None:
+            return "n/a"
+        return f"{100 * x:.1f}%" if pct else f"{x:.4f}"
+
+    print(
+        f"\n{m['n_cases']} cases ({m['n_answerable']} answerable, {m['n_should_refuse']} "
+        f"should refuse), {m['claims_generated']} claims, {m['generation_errors']} errors"
+    )
+    rows = [
+        ("ungrounded (judge)", "ungrounded_rate_judge", True),
+        ("ungrounded (verifier)", "ungrounded_rate_verifier", True),
+        ("citation precision", "citation_precision", True),
+        ("refusal accuracy", "refusal_accuracy", True),
+        ("answer rate", "answer_rate", True),
+        ("accuracy", "accuracy", True),
+        ("cost/query USD", "cost_per_query_usd", False),
+    ]
+    conds = list(m["conditions"])
+    print(f"{'metric':<24}" + "".join(f"{'verifier ' + c:>16}" for c in conds))
+    for label, key, pct in rows:
+        print(f"{label:<24}" + "".join(f"{f(m['conditions'][c][key], pct):>16}" for c in conds))
+    print(
+        "p95 latency ms        "
+        + "".join(f"{m['conditions'][c]['latency_ms']['p95']:>16.0f}" for c in conds)
+    )
+    print(f"judge cost (eval only): {f(m['judge_cost_total_usd'])} USD")
 
 
 if __name__ == "__main__":

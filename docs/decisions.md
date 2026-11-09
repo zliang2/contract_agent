@@ -129,3 +129,43 @@ Each entry: what was decided, why, and alternatives considered.
 ### Cache the ingested database in Actions
 - **What:** the ingest job caches `db.dump`, the BM25 index and CUAD JSON, keyed on a hash of the ingestion code, schema, settings and `uv.lock`.
 - **Why:** ingestion takes about 42 minutes on a CPU runner and only changes when that code does. The key ensures a stale database is never reused after an ingestion change.
+
+## Phase 3 — Generation and verification
+
+### One provider interface; JSON constrained by each API's structured-output feature
+- **What:** `Provider.complete_json(model, system, user, schema, max_tokens)` with Anthropic (`output_config.format` JSON schema) and Gemini (`google-genai`, `response_json_schema`; Vertex AI by default, the AI Studio API when `GEMINI_API_KEY` is set). `FakeProvider` backs every test, so the test suite makes no paid calls.
+- **Why:** generation, verification and the eval judge all need "prompt in, validated JSON out", so one interface keeps the model swap for the benchmark to a single argument. Constraining JSON at the API level makes invalid output rare. Pydantic validation plus one retry (spec §6) handles the remainder.
+- **Alternatives:** tool calling to force JSON (more plumbing, same effect); free-text plus regex parsing (brittle).
+
+### No server-side model fallback on refusals
+- **What:** a refused request is recorded as refused; it isn't re-run on another model.
+- **Why:** the benchmark compares models. Anthropic's `fallbacks` option would silently answer some cases with a different model, mixing results.
+
+### Quote check: whitespace and quote characters only, case-sensitive, with an index map
+- **What:** both texts are normalized (curly/prime quotes → straight, whitespace runs → one space), the quote must be a substring, and a per-character index map turns the match back into exact contract offsets.
+- **Why:** CUAD text came from PDF→TXT with irregular spacing, so a model copying it can't reproduce the whitespace; anything beyond that (case, wording, numbers) is a real difference. Paraphrases and changed numbers fail (tested). The index map makes highlighted spans exact rather than approximate.
+- **Alternatives:** fuzzy matching (accepts paraphrases, defeating the point); exact match without normalization (rejects faithful copies).
+
+### Support check runs only when the quote was found
+- **Why:** a citation whose quote isn't in the chunk already fails, so the LLM call would be wasted money.
+
+### Measure groundedness with an independent judge, not the verifier (spec deviation)
+- **What:** `evals/judge.py`, a separate LLM call (`JUDGE_MODEL`) that sees the claim plus the *full text* of every cited chunk. Ungrounded rate = share of answered cases with at least one shown claim the judge marks unsupported. The spec's verifier-based rate is still reported.
+- **Why:** with the verifier on, every shown claim has passed the verifier by construction, so a verifier-measured ungrounded rate is 0 and says nothing. An independent judge (different model, different input) makes "verifier on vs off" a real measurement. The judge's own accuracy is checked against the 30 hand labels.
+- **Alternatives:** the verifier as its own grader (circular); human labels only (30 labels can't measure a rate across hundreds of cases).
+
+### Paired off/on comparison from one generation per case
+- **What:** each case is answered once with verification in "audit" mode. "Off" shows all claims; "on" shows only the claims that passed, which is exactly what enforce mode shows.
+- **Why:** both conditions use the same answers, so the difference is due only to the verifier, not generation randomness, and generation is paid for once.
+
+### Metric definitions that can't be gamed by refusing
+- **What:** besides the spec's metrics, report `answer_rate` on answerable cases, and `accuracy` = answerable cases answered with at least one shown citation overlapping a gold span (the spec's undefined "accuracy (span overlap)").
+- **Why:** a verifier that drops everything would get perfect refusal accuracy and zero ungrounded answers. Answer rate exposes that trade-off.
+
+### Costs from a dated price table; unknown price means unknown cost
+- **What:** `evals/prices.json` lists Claude list prices as given in the Claude API reference (dated in the file). Gemini prices aren't filled in yet, and cost is reported as `null` for any model without a listed price.
+- **Why:** CLAUDE.md forbids estimating metrics.
+
+### Sampled LLM evals
+- **What:** `--sample N --seed S` evaluates a fixed random sample of cases; the report records the sample size and seed.
+- **Why:** budget. The user doesn't want to spend money, and full splits need thousands of paid calls per model. Results from samples are labeled as samples.
