@@ -25,6 +25,10 @@ from pydantic import BaseModel
 from clausewitz.config import get_settings
 
 
+class QuotaExhausted(RuntimeError):
+    """The provider's daily quota is used up; retrying within minutes won't help."""
+
+
 @dataclass
 class LLMResult:
     text: str  # the model's JSON output (empty on refusal)
@@ -135,6 +139,8 @@ class GeminiProvider:
                 )
                 break
             except errors.APIError as e:
+                if e.code == 429 and "PerDay" in str(e):
+                    raise QuotaExhausted(f"{model}: daily quota exhausted") from e
                 if e.code not in (429, 500, 503) or attempt == self.MAX_ATTEMPTS - 1:
                     raise
                 self.sleep(min(60.0, 4.0 * 2**attempt))

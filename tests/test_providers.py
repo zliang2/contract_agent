@@ -138,3 +138,21 @@ def test_gemini_does_not_retry_bad_requests():
     provider.sleep = lambda s: None
     with pytest.raises(errors.APIError):
         provider.complete_json("gemini-x", "s", "u", GeneratedAnswer, 5)
+
+
+def test_gemini_daily_quota_raises_quota_exhausted_without_retry():
+    from google.genai import errors
+
+    from clausewitz.llm.providers import QuotaExhausted
+
+    class Daily(FakeGeminiClient):
+        def generate_content(self, **kwargs):
+            raise errors.APIError(429, {"error": {"message": "x", "details": [
+                {"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}]}})  # fmt: skip
+
+    provider = GeminiProvider(Daily(None))
+    waits = []
+    provider.sleep = waits.append
+    with pytest.raises(QuotaExhausted):
+        provider.complete_json("gemini-x", "s", "u", GeneratedAnswer, 5)
+    assert waits == []

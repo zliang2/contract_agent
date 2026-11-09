@@ -259,6 +259,26 @@ def main_full(args, argv) -> Path:
         if not value:
             sys.exit(f"no {name} model: set it in .env or pass it on the command line")
 
+    from clausewitz.llm.providers import QuotaExhausted
+
+    git = git_state()
+    run_id = {
+        "commit": git["commit"],
+        "argv": sorted(sys.argv[1:] if argv is None else argv),
+        "models": [gen_model, ver_model, judge_model],
+    }
+    slug = gen_model.replace("/", "-")
+    name = f"{datetime.now(UTC).date()}_{args.split}_full_{slug}_{git['commit'][:7]}"
+    for flag, value in (("sample", args.sample), ("limit", args.limit)):
+        if value:
+            name += f"_{flag}{value}"
+    if args.shard:
+        name += f"_shard{args.shard[0]}of{args.shard[1]}"
+    if git["dirty"]:
+        name += "_dirty"
+    # Checkpoints are keyed by commit + arguments, not date, so a run can resume next day.
+    checkpoint = REPORTS_DIR / ".partial" / (name.split("_", 1)[1] + ".jsonl")
+
     started = time.time()
     with connect() as conn:
         cases = build_cases(conn, args.split, args.subset, args.question_style)
@@ -270,13 +290,19 @@ def main_full(args, argv) -> Path:
         if args.shard:
             i, n = args.shard
             cases = cases[i::n]
-        records = run_full_cases(
-            conn, cases, gen_model, ver_model, judge_model, verify=not args.no_verify
-        )
+        try:
+            records = run_full_cases(
+                conn, cases, gen_model, ver_model, judge_model, verify=not args.no_verify,
+                checkpoint=None if git["dirty"] else checkpoint, run_id=run_id,
+            )  # fmt: skip
+        except QuotaExhausted as e:
+            n_done = max(0, len(checkpoint.read_text().splitlines()) - 1)
+            print(f"\nstopped: {e}. {n_done}/{len(cases)} cases saved in {checkpoint}.")
+            print("Rerun the same command after the quota resets to continue.")
+            sys.exit(3)
 
     prices = load_prices()
     conditions = ("off",) if args.no_verify else CONDITIONS
-    git = git_state()
     report = {
         "command": "python -m evals.run_eval " + " ".join(sys.argv[1:] if argv is None else argv),
         "git": git,
@@ -304,15 +330,6 @@ def main_full(args, argv) -> Path:
         "metrics": full_metrics(records, prices, conditions),
         "records": records,
     }
-    slug = gen_model.replace("/", "-")
-    name = f"{report['date'][:10]}_{args.split}_full_{slug}_{git['commit'][:7]}"
-    for flag, value in (("sample", args.sample), ("limit", args.limit)):
-        if value:
-            name += f"_{flag}{value}"
-    if args.shard:
-        name += f"_shard{args.shard[0]}of{args.shard[1]}"
-    if git["dirty"]:
-        name += "_dirty"
     path = write_report(report, name)
     print_full_summary(report["metrics"])
     if git["dirty"]:

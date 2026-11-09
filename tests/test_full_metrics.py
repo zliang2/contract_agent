@@ -81,3 +81,16 @@ def test_cost_counts_verify_only_when_on_and_excludes_judge():
 def test_unknown_price_gives_none_not_a_guess():
     m = full_metrics(RECORDS, {"models": {}})
     assert m["conditions"]["off"]["cost_per_query_usd"] is None
+
+
+def test_checkpoint_refuses_other_run(tmp_path):
+    import json as _json
+
+    from evals.full_eval import load_checkpoint
+
+    p = tmp_path / "c.jsonl"
+    p.write_text(_json.dumps({"commit": "a"}) + "\n" + _json.dumps(
+        {"contract_id": 1, "clause_type": "x"}) + "\n")  # fmt: skip
+    assert set(load_checkpoint(p, {"commit": "a"})) == {"1|x"}
+    with pytest.raises(SystemExit):
+        load_checkpoint(p, {"commit": "b"})

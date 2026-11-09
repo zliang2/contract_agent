@@ -20,7 +20,9 @@ Metric definitions (per condition; "answered" = not refused):
   Judge calls are eval-only and reported separately.
 """
 
+import json
 from collections import defaultdict
+from pathlib import Path
 
 from tqdm import tqdm
 
@@ -44,14 +46,46 @@ def _call(stage: str, r) -> dict:
     }
 
 
+def case_key(contract_id: int, clause_type: str) -> str:
+    return f"{contract_id}|{clause_type}"
+
+
+def load_checkpoint(path: Path, run_id: dict) -> dict[str, dict]:
+    """Records already completed by an earlier run with the same `run_id`.
+
+    The first line of the checkpoint is the run id (commit + config). A checkpoint from a
+    different commit or config is refused, so a report never mixes code versions.
+    """
+    if not path.exists():
+        return {}
+    lines = path.read_text().splitlines()
+    if not lines or json.loads(lines[0]) != run_id:
+        raise SystemExit(f"{path} is from a different commit/config; delete it to start over")
+    records = [json.loads(line) for line in lines[1:] if line.strip()]
+    return {case_key(r["contract_id"], r["clause_type"]): r for r in records}
+
+
 def run_full_cases(
-    conn, cases, generate_model: str, verify_model: str, judge_model: str, verify: bool = True
-):
+    conn, cases, generate_model: str, verify_model: str, judge_model: str, verify: bool = True,
+    checkpoint: Path | None = None, run_id: dict | None = None,
+):  # fmt: skip
     """Answer each case and return one record per case. `verify=False` skips verifier calls
-    (only the verifier-off condition is then meaningful)."""
+    (only the verifier-off condition is then meaningful).
+
+    With `checkpoint`, each finished record is appended to that JSONL file and cases found
+    there are skipped, so a run stopped by a daily quota resumes where it left off.
+    Raises `QuotaExhausted` (after saving progress) when the provider's daily quota runs out.
+    """
     judge = get_provider(judge_model)
+    done = load_checkpoint(checkpoint, run_id) if checkpoint else {}
+    if checkpoint and not checkpoint.exists():
+        checkpoint.parent.mkdir(parents=True, exist_ok=True)
+        checkpoint.write_text(json.dumps(run_id) + "\n")
     records = []
-    for case in tqdm(cases, desc="full eval", mininterval=10):
+    todo = [c for c in cases if case_key(c.contract_id, c.clause_type) not in done]
+    if done:
+        print(f"resuming: {len(cases) - len(todo)} of {len(cases)} cases already done")
+    for case in tqdm(todo, desc="full eval", mininterval=10):
         a = pipeline.answer(
             case.question, case.contract_id, conn, verify="audit" if verify else "off",
             generate_model=generate_model, verify_model=verify_model,
@@ -103,7 +137,11 @@ def run_full_cases(
                 "timings_ms": {k: round(v, 1) for k, v in a.timings_ms.items()},
             }
         )
-    return records
+        if checkpoint:
+            with checkpoint.open("a") as f:
+                f.write(json.dumps(records[-1]) + "\n")
+    by_key = {**done, **{case_key(r["contract_id"], r["clause_type"]): r for r in records}}
+    return [by_key[case_key(c.contract_id, c.clause_type)] for c in cases]
 
 
 def _shown(record: dict, condition: str) -> list[dict]:

@@ -95,3 +95,18 @@ def test_full_eval_records_and_metrics(conn, fake_llm):
     m = full_metrics(records, {"models": {}})
     assert m["conditions"]["on"]["n_answered"] == 3
     assert m["conditions"]["on"]["refusal_accuracy"] == 0.0  # the fake always answers
+
+
+def test_full_eval_resumes_from_checkpoint(conn, fake_llm, tmp_path):
+    from evals.build_cases import build_cases
+    from evals.full_eval import run_full_cases
+
+    cases = build_cases(conn, "dev")[:3]
+    ckpt, run_id = tmp_path / "ck.jsonl", {"commit": "x"}
+    first = run_full_cases(conn, cases[:2], "g", "v", "j", checkpoint=ckpt, run_id=run_id)
+    n_calls = len(fake_llm.calls)
+    again = run_full_cases(conn, cases, "g", "v", "j", checkpoint=ckpt, run_id=run_id)
+    assert [r["clause_type"] for r in again] == [c.clause_type for c in cases]
+    assert again[:2] == first
+    assert len(fake_llm.calls) > n_calls  # only the third case made new calls
+    assert len(ckpt.read_text().splitlines()) == 1 + 3

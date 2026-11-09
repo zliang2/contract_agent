@@ -9,3 +9,4 @@ data/
 indexes/
 web/node_modules/
 web/dist/
+evals/reports/.partial/
