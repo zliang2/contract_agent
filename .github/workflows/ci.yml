@@ -78,3 +78,13 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t clausewitz:ci .
+      - name: Image starts and has the UI and baked models
+        run: |
+          docker run --rm --entrypoint sh clausewitz:ci -c \
+            "test -f web/dist/index.html && ls /app/hf/hub | grep -q bge-small && ls /app/hf/hub | grep -q MiniLM"

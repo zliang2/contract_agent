@@ -57,6 +57,22 @@ Per-stage latency on cpu (`Linux-6.17.0-1022-azure-x86_64-with-glibc2.39`), ms p
 - The fused candidate pool contains a relevant chunk for 0.984 of plain-question cases, so reranking quality, not candidate recall, sets the ceiling.
 - Latency is dominated by the reranker on CPU runners (p50 about 2.1 s); the other stages take milliseconds.
 
+### CI gate subset (`ci_50`)
+
+- **Report:** [`evals/reports/2026-11-10_dev_retrieval_5129e94_ci_50.json`](../evals/reports/2026-11-10_dev_retrieval_5129e94_ci_50.json)
+- **Commit:** `5129e94e9b335aa9992495bc025e7e365dce603c` (clean tree), run locally (macOS, Apple silicon)
+- **Command:** `python -m evals.run_eval --split dev --stage retrieval --subset evals/subsets/ci_50.json`
+- **Cases:** 50 answerable dev cases drawn by `python -m evals.make_subset --split dev --n 50 --seed 0` (47 contracts, 28 clause types).
+
+| Mode | Recall@1 | Recall@3 | Recall@8 |
+|---|---|---|---|
+| BM25 only | 0.520 | 0.700 | 0.800 |
+| Vector only | 0.320 | 0.460 | 0.760 |
+| Hybrid (RRF) | 0.400 | 0.680 | 0.860 |
+| Hybrid + rerank | 0.520 | 0.680 | 0.920 |
+
+This is the baseline the CI gate compares against (`evals/subsets/ci_50_baseline.json`). With only 50 cases, one case is 2 points; these values come from a small sample and are not a replacement for the full dev-split numbers above.
+
 ### Not tested
 
 - Whether a contract-domain or larger reranker would do better; whether cross-encoder truncation at 512 tokens costs recall.

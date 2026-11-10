@@ -11,7 +11,7 @@ Endpoints:
 Each query logs one JSON trace line (`clausewitz.tracing`). If `web/dist` exists (the
 built React app), it is served at `/`, so the UI and API share one origin and one Cloud
 Run service, with no CORS. Models and the BM25 index load at startup, not on the first
-request.
+request; the BM25 index is first downloaded from Cloud Storage if `BM25_INDEX_URI` is set.
 """
 
 from contextlib import asynccontextmanager
@@ -32,9 +32,11 @@ WEB_DIST = Path(__file__).resolve().parents[2] / "web" / "dist"
 
 
 def warm_up() -> None:
-    """Load the embedding model, reranker and BM25 index into memory."""
+    """Fetch the BM25 index if needed, and load it and both models into memory."""
+    from clausewitz.gcs import ensure_bm25_index
     from clausewitz.retrieval import bm25, rerank, vector
 
+    ensure_bm25_index()
     bm25.get_index()
     vector.embed_query("warm up")
     rerank.rerank("warm up", [(0, "warm up")], top_n=1)

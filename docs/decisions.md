@@ -227,3 +227,29 @@ Each entry: what was decided, why, and alternatives considered.
 ### DB-backed tests run in the CI gate job
 - **What:** `ci.yml`'s `retrieval-gate` job, which has the ingested database, also runs `pytest -m db`. That includes the API smoke test hitting every endpoint, with a fake LLM.
 - **Why:** the plain `test` job's database is empty, so those tests skip there.
+
+## Phase 6 — Deploy and tracing
+
+### Scale to zero: Cloud Run min instances = 0 (spec deviation)
+- **What:** `deploy.yml` deploys with `--min-instances 0 --max-instances 2`, where spec §10 says min instances = 1.
+- **Why:** the user doesn't want to pay for an idle instance; one always-on instance bills around the clock. The cost is a cold start of several seconds (container start plus model loading, shortened by `--cpu-boost`) on the first request after idle. The models are baked into the image, so a cold start never downloads them.
+- **Alternatives:** min = 1 (no cold starts, constant cost); lazy model loading (moves the cost onto the first user request instead of startup).
+
+### Cloud SQL through Cloud Run's built-in connection, not the Python Connector (spec deviation)
+- **What:** `--add-cloudsql-instances` mounts the instance's unix socket at `/cloudsql/<connection name>`. `DATABASE_URL` (in Secret Manager) is `postgresql://…@/clausewitz?host=/cloudsql/…`.
+- **Why:** the Cloud SQL Python Connector supports pg8000 and asyncpg, not psycopg 3, which the code uses everywhere. The built-in connection gives the same IAM-authorized, encrypted path with no code change, and keeps one DB URL format for local and production.
+
+### Workload Identity Federation for deploys
+- **Why:** GitHub stores no long-lived service account key. Only workflows from this repository can impersonate the deploy account, and the deploy account can only act as the runtime account.
+
+### BM25 index in Cloud Storage, downloaded at startup
+- **What:** `clausewitz/gcs.py` copies `BM25_INDEX_URI` into `BM25_INDEX_PATH` if that path is missing. It downloads into a `.partial` directory first and renames it only when complete.
+- **Why:** this follows spec §10. The index belongs with the data (its row ids are `chunks.id`), so a re-ingest uploads a new index without rebuilding the image. The rename means a failed download can't leave a half-written index behind.
+
+### Image: two stages, models baked, offline at runtime, non-root
+- **What:** a Node stage builds `web/dist`; the Python stage runs `uv sync --locked --no-dev` (CPU-only torch on Linux), downloads both models at build time and sets `HF_HUB_OFFLINE=1`. It runs as uid 10001 with one uvicorn worker.
+- **Why:** offline mode makes a missing model fail at build time, not in production. One worker, because each worker would load its own copy of the models, and requests spend most of their time waiting on the LLM, which the thread pool already overlaps.
+
+### Deploy workflow is skipped until GCP is configured
+- **What:** the job runs only when the `GCP_PROJECT_ID` repository variable is set. `deploy/setup_gcp.sh` creates the resources and prints the variables to set.
+- **Why:** creating GCP resources costs money (Cloud SQL has no free tier), so it waits for the user's explicit go-ahead. Until then, pushing to `main` doesn't fail a deploy.

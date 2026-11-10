@@ -1,0 +1,48 @@
+# On merge to main: build the image, push it to Artifact Registry, deploy to Cloud Run
+# (docs/SPEC.md §10). Authenticates with Workload Identity Federation, so no service
+# account key is stored in GitHub. Skipped until the repository variables below are set
+# by deploy/setup_gcp.sh (see docs/deploy.md).
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency: { group: deploy, cancel-in-progress: false }
+
+jobs:
+  deploy:
+    if: vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write }
+    env:
+      IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/clausewitz/api:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+      - run: docker build -t "$IMAGE" . && docker push "$IMAGE"
+      - name: Deploy to Cloud Run
+        # min-instances 0 (scale to zero) is a deliberate deviation from spec §10's 1;
+        # see docs/decisions.md. --cpu-boost shortens model loading on cold starts.
+        run: |
+          gcloud run deploy clausewitz --quiet \
+            --project ${{ vars.GCP_PROJECT_ID }} --region ${{ vars.GCP_REGION }} \
+            --image "$IMAGE" --service-account ${{ vars.GCP_RUNTIME_SA }} \
+            --allow-unauthenticated --port 8080 \
+            --cpu 2 --memory 4Gi --cpu-boost --concurrency 8 \
+            --min-instances 0 --max-instances 2 --timeout 120 \
+            --add-cloudsql-instances ${{ vars.CLOUD_SQL_INSTANCE }} \
+            --set-secrets DATABASE_URL=clausewitz-database-url:latest,GEMINI_API_KEY=clausewitz-gemini-api-key:latest \
+            --set-env-vars GENERATE_MODEL=${{ vars.GENERATE_MODEL }},VERIFY_MODEL=${{ vars.VERIFY_MODEL }},BM25_INDEX_URI=${{ vars.BM25_INDEX_URI }}
+      - name: Smoke test
+        run: |
+          url=$(gcloud run services describe clausewitz --project ${{ vars.GCP_PROJECT_ID }} \
+            --region ${{ vars.GCP_REGION }} --format 'value(status.url)')
+          curl -fsS --retry 5 --retry-delay 10 --retry-all-errors "$url/healthz"
+          curl -fsS "$url/contracts?split=test" | head -c 200

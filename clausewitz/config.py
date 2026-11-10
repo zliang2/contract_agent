@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     verify_model: str = ""
     judge_model: str = ""  # eval-only: independent grounding judge (see evals/judge.py)
     bm25_index_path: str = "indexes/bm25"
+    # Production: gs://bucket/prefix holding the BM25 index; downloaded to bm25_index_path
+    # at startup if that directory doesn't exist (docs/SPEC.md §10).
+    bm25_index_uri: str = ""
     price_table_path: str = "evals/prices.json"
     cuad_path: str = "data/raw/CUAD_v1/CUAD_v1.json"
     embed_model: str = "BAAI/bge-small-en-v1.5"
