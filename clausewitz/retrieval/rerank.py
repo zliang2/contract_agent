@@ -28,6 +28,6 @@ def rerank(
         [(question, text) for _, text in candidates], batch_size=BATCH_SIZE, show_progress_bar=False
     )
     ranked = sorted(
-        zip((cid for cid, _ in candidates), scores, strict=True), key=lambda x: (-x[1], x[0])
+        zip((cid for cid, _ in candidates), scores, strict=True), key=lambda x: (x[1], x[0])  # DEMO BUG: ascending, keeps the worst chunks
     )
     return [(cid, float(s)) for cid, s in ranked[:top_n]]
