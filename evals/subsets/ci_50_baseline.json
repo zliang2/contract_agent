@@ -1,0 +1,9 @@
+{
+ "subset": "evals/subsets/ci_50.json",
+ "n_cases": 50,
+ "mode": "rerank",
+ "recall@8": 0.92,
+ "report": "evals/reports/2026-11-10_dev_retrieval_5129e94_ci_50.json",
+ "command": "python -m evals.run_eval --split dev --stage retrieval --subset evals/subsets/ci_50.json",
+ "commit": "5129e94e9b335aa9992495bc025e7e365dce603c"
+}
