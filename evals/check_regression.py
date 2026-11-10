@@ -28,8 +28,9 @@ def check(report: dict, baseline: dict) -> tuple[bool, str]:
         return False, f"report evaluated {n} cases, baseline has {baseline['n_cases']}"
     new = report["metrics"][METRIC][GATED_MODE]
     old = baseline[METRIC]
-    drop = 100 * (old - new)
-    msg = f"{GATED_MODE} {METRIC}: {new:.3f} (main {old:.3f}, change {-drop:+.1f} points)"
+    change = 100 * (new - old)
+    drop = -change
+    msg = f"{GATED_MODE} {METRIC}: {new:.3f} (main {old:.3f}, change {change:+.1f} points)"
     if drop > MAX_DROP_POINTS + 1e-9:
         return False, msg + f" -- dropped more than {MAX_DROP_POINTS:g} points"
     return True, msg

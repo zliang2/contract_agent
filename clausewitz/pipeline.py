@@ -155,8 +155,13 @@ def answer(
     timings = dict(r.timings_ms)
     chunks = _load_chunks(conn, r.chunk_ids)
 
+    titles = None
+    if contract_id is None:  # corpus-wide: tell the model which contract each excerpt is from
+        ids = sorted({c.contract_id for c in chunks})
+        titles = dict(conn.execute("SELECT id, title FROM contracts WHERE id = ANY(%s)", (ids,)))
+
     t = time.perf_counter()
-    g = gen.generate(question, chunks, get_provider(generate_model), generate_model)
+    g = gen.generate(question, chunks, get_provider(generate_model), generate_model, titles)
     timings["generate"] = (time.perf_counter() - t) * 1000
     calls = {"generate": g.attempts, "verify": []}
 

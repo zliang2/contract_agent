@@ -49,8 +49,16 @@ SYSTEM = (
 )
 
 
-def build_prompt(question: str, chunks: list[Chunk]) -> str:
-    excerpts = "\n\n".join(f'<excerpt chunk_id="{c.id}">\n{c.text}\n</excerpt>' for c in chunks)
+def build_prompt(question: str, chunks: list[Chunk], titles: dict[int, str] | None = None) -> str:
+    """Prompt with each chunk as an `<excerpt>`. With `titles` (corpus-wide questions, where
+    excerpts come from many contracts), each excerpt also names its contract."""
+
+    def attrs(c: Chunk) -> str:
+        if titles is None:
+            return f'chunk_id="{c.id}"'
+        return f'chunk_id="{c.id}" contract="{titles[c.contract_id]}"'
+
+    excerpts = "\n\n".join(f"<excerpt {attrs(c)}>\n{c.text}\n</excerpt>" for c in chunks)
     return f"Contract excerpts:\n\n{excerpts}\n\nQuestion: {question}"
 
 
@@ -61,9 +69,15 @@ class Generation:
     error: str | None = None
 
 
-def generate(question: str, chunks: list[Chunk], provider: Provider, model: str) -> Generation:
+def generate(
+    question: str,
+    chunks: list[Chunk],
+    provider: Provider,
+    model: str,
+    titles: dict[int, str] | None = None,
+) -> Generation:
     """Generate a cited answer. Retries once if the JSON doesn't validate."""
-    prompt = build_prompt(question, chunks)
+    prompt = build_prompt(question, chunks, titles)
     gen = Generation(answer=None)
     for _ in range(2):
         result = provider.complete_json(model, SYSTEM, prompt, GeneratedAnswer, MAX_OUTPUT_TOKENS)

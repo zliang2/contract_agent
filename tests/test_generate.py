@@ -27,6 +27,13 @@ def test_prompt_labels_each_chunk_with_its_id():
     assert '<excerpt chunk_id="2">' in p and p.endswith("Question: Which law governs?")
 
 
+def test_corpus_wide_prompt_names_each_excerpts_contract():
+    p = build_prompt("q", CHUNKS, titles={9: "Acme Supply"})
+    assert '<excerpt chunk_id="1" contract="Acme Supply">' in p
+    # Without titles (single-contract questions) the prompt is unchanged.
+    assert "contract=" not in build_prompt("q", CHUNKS)
+
+
 def test_valid_output_parses_first_try():
     provider = scripted(VALID)
     g = generate("q", CHUNKS, provider, "m")

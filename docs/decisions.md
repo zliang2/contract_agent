@@ -199,3 +199,31 @@ Each entry: what was decided, why, and alternatives considered.
 - **What:** a composite action (`.github/actions/ingested-db`) restores or builds the ingested database for both the CI gate and the sharded eval. Its cache key is a hash of the ingestion code, schema, settings and the installed versions of the libraries that affect ingestion output: sentence-transformers, transformers, torch, bm25s, PyStemmer, pgvector and numpy. A scheduled CI run every 3 days keeps the cache from being evicted.
 - **Why:** a cache miss costs about 35–40 minutes of re-ingestion. Hashing all of `uv.lock` would invalidate the cache whenever an unrelated dependency changed, such as adding FastAPI in Phase 5.
 - **Risk:** a library not on the list that changes ingestion output wouldn't invalidate the cache. The list covers every library ingestion imports for tokenizing, embedding or indexing.
+
+## Phase 5 — API and UI
+
+### FastAPI with sync endpoints, a small connection pool, and models loaded at startup
+- **What:** `clausewitz/api/main.py`. The endpoints are plain `def` functions, which FastAPI runs in a thread pool because the pipeline is synchronous (psycopg, torch). Connections come from `psycopg_pool.ConnectionPool` (1–4), with the pgvector type registered on each connection. Startup loads the embedding model, the reranker and the BM25 index.
+- **Why:** model loading takes seconds. Done at startup it happens once per container, not on a user's first request; that's the same reason the spec asks for min-instances = 1. A pool avoids a new Postgres connection, plus pgvector registration, on every request.
+- **Alternatives:** async endpoints (the pipeline would block the event loop, or need wrapping in threads anyway); a connection per request (slower, and Cloud SQL connection limits are low).
+
+### The API always runs the verifier in enforce mode; quota errors return 503
+- **Why:** users get only verified claims. Audit mode is for evals. A provider's daily-quota error isn't the user's fault and is worth retrying later, so it returns 503 rather than 500.
+
+### Corpus-wide questions label each excerpt with its contract title
+- **What:** when no `contract_id` is given, each `<excerpt>` also gets `contract="<title>"`. Single-contract prompts are byte-identical to before.
+- **Why:** the first corpus-wide test query found the right Kansas governing-law clauses in two contracts but could only call them "the agreement in Section 8.3", because nothing told the model which contract an excerpt came from. Leaving single-contract prompts unchanged keeps every eval (all single-contract) comparable across commits.
+
+### UI: React 19 + TypeScript + Vite, highlighting by character offsets
+- **What:** `web/`. `highlight.segments()` cuts the contract text at every cited span's offsets, so the highlighted text is exactly `text.slice(start_char, end_char)`; the pieces always rejoin into the original text, and overlapping spans are handled. The active citation is highlighted strongly, other citations in the same contract faintly. In corpus-wide mode, clicking a chip opens the contract it cites.
+- **Tests:** Vitest with happy-dom. A component test mocks the API, clicks a chip and asserts the highlighted text equals the cited slice; another checks that refusals render as refusals and that dropped-claim notes appear.
+- **Why offsets, not searching for the quote string:** a quote can appear several times in a contract, and the verifier's offsets are already exact. Searching again could highlight the wrong occurrence.
+
+### Toolchain: Node 24 LTS; dependencies pinned to releases at least two weeks old
+- **What:** official Node tarball (checksum verified) in `~/.local`, as with uv. Every npm dependency is pinned exactly to the newest stable release published at least two weeks before it was added. `npm audit` found 0 vulnerabilities.
+- **Why:** Homebrew builds Node from source on this macOS version. npm 10 (Node 22) crashed resolving Vitest's optional peer dependencies; npm 11 (Node 24) doesn't. The two-week rule lowers supply-chain risk from a freshly published compromised release. Exact pins plus `package-lock.json` keep builds reproducible.
+- **happy-dom instead of jsdom:** jsdom's optional canvas peer dependency also triggered the npm 10 crash, and happy-dom is lighter. Both are supported Vitest environments.
+
+### DB-backed tests run in the CI gate job
+- **What:** `ci.yml`'s `retrieval-gate` job, which has the ingested database, also runs `pytest -m db`. That includes the API smoke test hitting every endpoint, with a fake LLM.
+- **Why:** the plain `test` job's database is empty, so those tests skip there.
