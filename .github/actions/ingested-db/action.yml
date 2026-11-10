@@ -1,0 +1,53 @@
+# Restore the ingested CUAD database (pg_dump), BM25 index and CUAD JSON from the Actions
+# cache, or build them (about 35-40 min on a CPU runner) and save them for later jobs.
+# Expects a pgvector Postgres service on localhost:5432 and `uv sync` already run.
+#
+# The cache key covers everything that changes what ingestion produces: ingestion code,
+# schema, settings, and the installed versions of the libraries that tokenize, embed and
+# index. It deliberately does not hash all of uv.lock, so adding an unrelated dependency
+# (e.g. the API framework) doesn't force a re-ingest.
+name: ingested-db
+description: Restore or build the ingested CUAD database and BM25 index
+runs:
+  using: composite
+  steps:
+    - name: Ingestion fingerprint
+      id: fp
+      shell: bash
+      run: |
+        uv run python -c "import importlib.metadata as m; print(' '.join(p + '=' + m.version(p) for p in ('sentence-transformers', 'transformers', 'torch', 'bm25s', 'PyStemmer', 'pgvector', 'numpy')))" > .ingest-deps
+        cat .ingest-deps
+        echo "deps=$(sha256sum .ingest-deps | cut -c1-16)" >> "$GITHUB_OUTPUT"
+        rm .ingest-deps
+    - name: Restore cached ingestion
+      id: ingested
+      uses: actions/cache@v4
+      with:
+        path: |
+          data/db.dump
+          data/raw/CUAD_v1/CUAD_v1.json
+          indexes/bm25
+        key: ingested-v2-${{ steps.fp.outputs.deps }}-${{ hashFiles('clausewitz/ingest/**', 'clausewitz/schema.sql', 'clausewitz/config.py', 'clausewitz/db.py') }}
+    - uses: actions/cache@v4
+      with:
+        path: ~/.cache/huggingface
+        key: hf-models-${{ hashFiles('clausewitz/config.py', 'clausewitz/retrieval/rerank.py') }}
+    - name: Download CUAD and ingest
+      if: steps.ingested.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        uv run python -m clausewitz.ingest.load_cuad --download
+        uv run python -m clausewitz.ingest.load_db
+        docker run --rm --network host -e PGPASSWORD=clausewitz -v "$PWD/data:/out" \
+          pgvector/pgvector:pg16 pg_dump -h localhost -U clausewitz -Fc -f /out/db.dump clausewitz
+    - name: Restore database
+      if: steps.ingested.outputs.cache-hit == 'true'
+      shell: bash
+      run: |
+        docker run --rm --network host -e PGPASSWORD=clausewitz -v "$PWD/data:/in" \
+          pgvector/pgvector:pg16 pg_restore -h localhost -U clausewitz -d clausewitz --no-owner /in/db.dump
+    - name: Warm model cache
+      shell: bash
+      run: |
+        uv run python -c "from clausewitz.ingest.embed import get_model; get_model()"
+        uv run python -c "from clausewitz.retrieval.rerank import get_model; get_model()"

@@ -4,6 +4,13 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    # Keeps the ingestion cache warm (GitHub evicts caches unused for 7 days), so PRs
+    # don't pay for a 35-40 minute re-ingest.
+    - cron: "0 6 */3 * *"
+
+env:
+  DATABASE_URL: postgresql://clausewitz:clausewitz@localhost:5432/clausewitz
 
 jobs:
   test:
@@ -11,19 +18,45 @@ jobs:
     services:
       db:
         image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_USER: clausewitz
-          POSTGRES_PASSWORD: clausewitz
-          POSTGRES_DB: clausewitz
+        env: { POSTGRES_USER: clausewitz, POSTGRES_PASSWORD: clausewitz, POSTGRES_DB: clausewitz }
         ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U clausewitz" --health-interval 2s --health-retries 15
-    env:
-      DATABASE_URL: postgresql://clausewitz:clausewitz@localhost:5432/clausewitz
+        options: --health-cmd "pg_isready -U clausewitz" --health-interval 2s --health-retries 15
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync
+      - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest -v
+
+  # Retrieval-only eval on evals/subsets/ci_50.json (no LLM calls, no cost). Fails if the
+  # production path's recall@8 drops more than 2 points below the stored main baseline.
+  retrieval-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env: { POSTGRES_USER: clausewitz, POSTGRES_PASSWORD: clausewitz, POSTGRES_DB: clausewitz }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U clausewitz" --health-interval 2s --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - uses: ./.github/actions/ingested-db
+      - name: Retrieval eval on ci_50
+        run: |
+          test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+          uv run python -m evals.run_eval --split dev --stage retrieval \
+            --subset evals/subsets/ci_50.json
+      - name: Compare with main baseline
+        run: |
+          report=$(git ls-files --others --exclude-standard 'evals/reports/*_ci_50.json')
+          uv run python -m evals.check_regression "$report"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-50-retrieval-report
+          retention-days: 30
+          path: evals/reports/*_ci_50.json

@@ -221,6 +221,8 @@ def main(argv: list[str] | None = None) -> Path:
         "records": records,
     }
     name = f"{report['date'][:10]}_{args.split}_{args.stage}_{git['commit'][:7]}"
+    if args.subset:
+        name += f"_{Path(args.subset).stem}"
     if args.question_style != "plain":
         name += f"_{args.question_style}"
     if args.limit:

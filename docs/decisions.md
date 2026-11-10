@@ -182,3 +182,20 @@ Each entry: what was decided, why, and alternatives considered.
 ### Caveat: "should refuse" = "no gold span" is noisy
 - **What:** kept as the spec defines it, but reported with this caveat.
 - **Why:** the first smoke run showed two no-gold cases where the model gave a correct, cited answer. One was a correct "no" (Termination For Convenience: the contract only allows termination for cause, and the model said so). The other quoted a clause that looks like an IP assignment CUAD didn't label for that category. So `refusal_accuracy` understates the system on yes/no clause types. The hand-labeled sample can measure how often this happens; the definition is not changed to improve the number.
+
+## Phase 4 — Eval harness, benchmark and CI
+
+### `ci_50.json`: 50 answerable dev cases, seeded
+- **What:** `evals/make_subset.py --split dev --n 50 --seed 0` samples 50 answerable (contract, clause type) cases from the dev split: 47 contracts, 28 clause types.
+- **Why:** the per-PR gate measures retrieval recall, which is only defined on answerable cases. With 50 cases, one case is worth exactly 2 recall points, so "fail on a drop of more than 2 points" means one changed case passes and two fail. It uses the dev split so the test split stays untouched until the final benchmark.
+- **Alternatives:** mixing in should-refuse cases (they don't count for recall, so the gate would have fewer effective cases); stratifying by clause type (41 types don't divide into 50).
+
+### Gate only the production path, against a committed baseline
+- **What:** `evals/check_regression.py` fails CI when rerank recall@8 on `ci_50` is more than 2 points below `evals/subsets/ci_50_baseline.json`. That file is copied from a committed report produced on `main` from a clean tree. BM25, vector and hybrid are printed but not gated. When a PR improves recall, it updates the baseline with the new report.
+- **Why:** rerank is the path users get. A committed baseline is reviewable in the PR diff and needs no cross-workflow artifact lookup.
+- **Alternatives:** download `main`'s last report artifact (expires, and a run on main may be missing); evaluate the base commit inside every PR (doubles the gate's time).
+
+### Ingestion cache keyed on ingestion inputs, not all of `uv.lock`
+- **What:** a composite action (`.github/actions/ingested-db`) restores or builds the ingested database for both the CI gate and the sharded eval. Its cache key is a hash of the ingestion code, schema, settings and the installed versions of the libraries that affect ingestion output: sentence-transformers, transformers, torch, bm25s, PyStemmer, pgvector and numpy. A scheduled CI run every 3 days keeps the cache from being evicted.
+- **Why:** a cache miss costs about 35–40 minutes of re-ingestion. Hashing all of `uv.lock` would invalidate the cache whenever an unrelated dependency changed, such as adding FastAPI in Phase 5.
+- **Risk:** a library not on the list that changes ingestion output wouldn't invalidate the cache. The list covers every library ingestion imports for tokenizing, embedding or indexing.
