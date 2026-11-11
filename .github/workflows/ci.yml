@@ -53,15 +53,18 @@ jobs:
           uv run python -m evals.run_eval --split dev --stage retrieval \
             --subset evals/subsets/ci_50.json
       - name: Compare with main baseline
+        id: compare
         run: |
+          # This run's report is the one untracked file (committed reports are tracked).
           report=$(git ls-files --others --exclude-standard 'evals/reports/*_ci_50.json')
+          echo "report=$report" >> "$GITHUB_OUTPUT"
           uv run python -m evals.check_regression "$report"
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.compare.outputs.report != ''
         with:
           name: ci-50-retrieval-report
           retention-days: 30
-          path: evals/reports/*_ci_50.json
+          path: ${{ steps.compare.outputs.report }}
 
   web:
     runs-on: ubuntu-latest
