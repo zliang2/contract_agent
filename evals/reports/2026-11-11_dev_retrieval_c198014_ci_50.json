@@ -1,0 +1,1053 @@
+{
+ "command": "python -m evals.run_eval --split dev --stage retrieval --subset evals/subsets/ci_50.json",
+ "git": {
+  "commit": "c198014f9065f95a5d95b61e92615a1124edf6a0",
+  "dirty": false
+ },
+ "date": "2026-11-11T01:21:06+00:00",
+ "duration_s": 103.5,
+ "environment": {
+  "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+  "python": "3.12.16",
+  "device": "cpu"
+ },
+ "config": {
+  "split": "dev",
+  "stage": "retrieval",
+  "subset": "evals/subsets/ci_50.json",
+  "limit": null,
+  "shard": null,
+  "scope": "single contract (contract_id given)",
+  "question_style": "plain",
+  "candidates_k": 50,
+  "rerank_candidates": 50,
+  "final_k": 8,
+  "embed_model": "BAAI/bge-small-en-v1.5",
+  "rerank_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"
+ },
+ "cases": {
+  "total": 50,
+  "answerable_evaluated": 50
+ },
+ "metrics": {
+  "n_cases": 50,
+  "n_cases_contract_gt_8_chunks": 49,
+  "recall@8": {
+   "bm25": 0.8,
+   "vector": 0.76,
+   "hybrid": 0.86,
+   "rerank": 0.16
+  },
+  "recall_at_k": {
+   "bm25": {
+    "1": 0.52,
+    "3": 0.7,
+    "8": 0.8
+   },
+   "vector": {
+    "1": 0.32,
+    "3": 0.46,
+    "8": 0.76
+   },
+   "hybrid": {
+    "1": 0.4,
+    "3": 0.68,
+    "8": 0.86
+   },
+   "rerank": {
+    "1": 0.02,
+    "3": 0.04,
+    "8": 0.16
+   }
+  },
+  "recall@50_candidate_pool": {
+   "bm25": 0.94,
+   "vector": 0.98,
+   "hybrid": 0.98
+  },
+  "random_baseline_recall@8": 0.3810927772694492,
+  "contracts_gt_8_chunks": {
+   "recall@8": {
+    "bm25": 0.7959183673469388,
+    "vector": 0.7551020408163265,
+    "hybrid": 0.8571428571428571,
+    "rerank": 0.14285714285714285
+   },
+   "random_baseline_recall@8": 0.3684620176218869
+  },
+  "latency_ms": {
+   "bm25": {
+    "p50": 0.39,
+    "p95": 0.5539999999999997
+   },
+   "vector": {
+    "p50": 13.435,
+    "p95": 22.840499999999995
+   },
+   "fusion": {
+    "p50": 0.02,
+    "p95": 0.04
+   },
+   "rerank": {
+    "p50": 1978.385,
+    "p95": 3166.8250000000003
+   },
+   "total": {
+    "p50": 1986.425,
+    "p95": 3198.514
+   }
+  }
+ },
+ "records": [
+  {
+   "contract_id": 1,
+   "clause_type": "Joint Ip Ownership",
+   "n_chunks": 19,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 2,
+    "vector": 2,
+    "hybrid": 2,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 8.75,
+    "vector": 1784.26,
+    "fusion": 0.02,
+    "rerank": 3077.97,
+    "total": 4871.0
+   }
+  },
+  {
+   "contract_id": 14,
+   "clause_type": "Parties",
+   "n_chunks": 74,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": null,
+    "vector": null,
+    "hybrid": null,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.48,
+    "vector": 13.81,
+    "fusion": 0.04,
+    "rerank": 2966.64,
+    "total": 2980.96
+   }
+  },
+  {
+   "contract_id": 33,
+   "clause_type": "Non-Compete",
+   "n_chunks": 23,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 2,
+    "vector": 4,
+    "hybrid": 2,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.39,
+    "vector": 18.15,
+    "fusion": 0.02,
+    "rerank": 1440.61,
+    "total": 1459.17
+   }
+  },
+  {
+   "contract_id": 47,
+   "clause_type": "Rofr/Rofo/Rofn",
+   "n_chunks": 83,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 22,
+    "hybrid": 5,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.5,
+    "vector": 22.01,
+    "fusion": 0.04,
+    "rerank": 2986.43,
+    "total": 3008.98
+   }
+  },
+  {
+   "contract_id": 55,
+   "clause_type": "Non-Transferable License",
+   "n_chunks": 26,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 4,
+    "vector": 8,
+    "hybrid": 4,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.43,
+    "vector": 16.33,
+    "fusion": 0.02,
+    "rerank": 1628.45,
+    "total": 1645.22
+   }
+  },
+  {
+   "contract_id": 71,
+   "clause_type": "Change Of Control",
+   "n_chunks": 106,
+   "n_relevant": 9,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": 8
+   },
+   "timings_ms": {
+    "bm25": 0.59,
+    "vector": 23.52,
+    "fusion": 0.04,
+    "rerank": 3357.24,
+    "total": 3381.4
+   }
+  },
+  {
+   "contract_id": 71,
+   "clause_type": "No-Solicit Of Customers",
+   "n_chunks": 106,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 9,
+    "vector": 4,
+    "hybrid": 12,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.42,
+    "vector": 19.74,
+    "fusion": 0.04,
+    "rerank": 3166.55,
+    "total": 3186.75
+   }
+  },
+  {
+   "contract_id": 76,
+   "clause_type": "Anti-Assignment",
+   "n_chunks": 19,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 2,
+    "vector": 2,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.38,
+    "vector": 15.01,
+    "fusion": 0.02,
+    "rerank": 1127.28,
+    "total": 1142.69
+   }
+  },
+  {
+   "contract_id": 77,
+   "clause_type": "Agreement Date",
+   "n_chunks": 16,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 5,
+    "vector": 14,
+    "hybrid": 8,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.33,
+    "vector": 12.8,
+    "fusion": 0.02,
+    "rerank": 892.9,
+    "total": 906.05
+   }
+  },
+  {
+   "contract_id": 109,
+   "clause_type": "Agreement Date",
+   "n_chunks": 40,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 5,
+    "vector": 29,
+    "hybrid": 17,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.38,
+    "vector": 0.91,
+    "fusion": 0.03,
+    "rerank": 2251.85,
+    "total": 2253.17
+   }
+  },
+  {
+   "contract_id": 109,
+   "clause_type": "Competitive Restriction Exception",
+   "n_chunks": 40,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 5,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.37,
+    "vector": 17.56,
+    "fusion": 0.03,
+    "rerank": 2423.87,
+    "total": 2441.84
+   }
+  },
+  {
+   "contract_id": 112,
+   "clause_type": "Uncapped Liability",
+   "n_chunks": 117,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.51,
+    "vector": 21.22,
+    "fusion": 0.04,
+    "rerank": 3018.31,
+    "total": 3040.08
+   }
+  },
+  {
+   "contract_id": 146,
+   "clause_type": "Effective Date",
+   "n_chunks": 20,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 2,
+    "vector": 2,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.35,
+    "vector": 12.98,
+    "fusion": 0.02,
+    "rerank": 1153.58,
+    "total": 1166.93
+   }
+  },
+  {
+   "contract_id": 162,
+   "clause_type": "Unlimited/All-You-Can-Eat-License",
+   "n_chunks": 12,
+   "n_relevant": 3,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 3,
+    "hybrid": 1,
+    "rerank": 4
+   },
+   "timings_ms": {
+    "bm25": 0.41,
+    "vector": 17.97,
+    "fusion": 0.02,
+    "rerank": 704.5,
+    "total": 722.9
+   }
+  },
+  {
+   "contract_id": 187,
+   "clause_type": "License Grant",
+   "n_chunks": 35,
+   "n_relevant": 3,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 3,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.42,
+    "vector": 14.57,
+    "fusion": 0.02,
+    "rerank": 2043.66,
+    "total": 2058.68
+   }
+  },
+  {
+   "contract_id": 193,
+   "clause_type": "Parties",
+   "n_chunks": 28,
+   "n_relevant": 3,
+   "first_relevant_rank": {
+    "bm25": 4,
+    "vector": 7,
+    "hybrid": 3,
+    "rerank": 1
+   },
+   "timings_ms": {
+    "bm25": 0.35,
+    "vector": 0.64,
+    "fusion": 0.01,
+    "rerank": 1656.78,
+    "total": 1657.78
+   }
+  },
+  {
+   "contract_id": 194,
+   "clause_type": "Governing Law",
+   "n_chunks": 47,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 3,
+    "vector": 25,
+    "hybrid": 6,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.36,
+    "vector": 14.59,
+    "fusion": 0.03,
+    "rerank": 2891.67,
+    "total": 2906.66
+   }
+  },
+  {
+   "contract_id": 215,
+   "clause_type": "Joint Ip Ownership",
+   "n_chunks": 48,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 2,
+    "vector": 4,
+    "hybrid": 2,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.39,
+    "vector": 0.87,
+    "fusion": 0.03,
+    "rerank": 3008.06,
+    "total": 3009.35
+   }
+  },
+  {
+   "contract_id": 230,
+   "clause_type": "Renewal Term",
+   "n_chunks": 27,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.43,
+    "vector": 16.89,
+    "fusion": 0.02,
+    "rerank": 1693.6,
+    "total": 1710.94
+   }
+  },
+  {
+   "contract_id": 235,
+   "clause_type": "Third Party Beneficiary",
+   "n_chunks": 49,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 13,
+    "hybrid": 7,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.45,
+    "vector": 19.38,
+    "fusion": 0.03,
+    "rerank": 3167.05,
+    "total": 3186.92
+   }
+  },
+  {
+   "contract_id": 240,
+   "clause_type": "Agreement Date",
+   "n_chunks": 129,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 12,
+    "vector": 28,
+    "hybrid": 12,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.39,
+    "vector": 1.05,
+    "fusion": 0.04,
+    "rerank": 2654.38,
+    "total": 2655.86
+   }
+  },
+  {
+   "contract_id": 250,
+   "clause_type": "Document Name",
+   "n_chunks": 13,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": null,
+    "vector": 7,
+    "hybrid": 8,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.35,
+    "vector": 13.06,
+    "fusion": 0.01,
+    "rerank": 762.09,
+    "total": 775.52
+   }
+  },
+  {
+   "contract_id": 253,
+   "clause_type": "Agreement Date",
+   "n_chunks": 15,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 5,
+    "vector": 1,
+    "hybrid": 2,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.32,
+    "vector": 0.66,
+    "fusion": 0.01,
+    "rerank": 873.98,
+    "total": 874.97
+   }
+  },
+  {
+   "contract_id": 271,
+   "clause_type": "Anti-Assignment",
+   "n_chunks": 9,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 3,
+    "hybrid": 2,
+    "rerank": 7
+   },
+   "timings_ms": {
+    "bm25": 0.37,
+    "vector": 0.71,
+    "fusion": 0.01,
+    "rerank": 484.82,
+    "total": 485.91
+   }
+  },
+  {
+   "contract_id": 273,
+   "clause_type": "Document Name",
+   "n_chunks": 34,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": null,
+    "vector": 10,
+    "hybrid": 17,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.3,
+    "vector": 0.74,
+    "fusion": 0.02,
+    "rerank": 1913.11,
+    "total": 1914.17
+   }
+  },
+  {
+   "contract_id": 291,
+   "clause_type": "No-Solicit Of Employees",
+   "n_chunks": 153,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.42,
+    "vector": 20.34,
+    "fusion": 0.05,
+    "rerank": 3187.19,
+    "total": 3208.0
+   }
+  },
+  {
+   "contract_id": 299,
+   "clause_type": "Exclusivity",
+   "n_chunks": 24,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 10,
+    "hybrid": 3,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.59,
+    "vector": 27.79,
+    "fusion": 0.02,
+    "rerank": 1700.32,
+    "total": 1728.73
+   }
+  },
+  {
+   "contract_id": 304,
+   "clause_type": "Audit Rights",
+   "n_chunks": 29,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 5,
+    "hybrid": 2,
+    "rerank": 3
+   },
+   "timings_ms": {
+    "bm25": 0.41,
+    "vector": 17.22,
+    "fusion": 0.02,
+    "rerank": 1816.03,
+    "total": 1833.69
+   }
+  },
+  {
+   "contract_id": 314,
+   "clause_type": "Audit Rights",
+   "n_chunks": 14,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 5,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.43,
+    "vector": 0.62,
+    "fusion": 0.02,
+    "rerank": 870.3,
+    "total": 871.37
+   }
+  },
+  {
+   "contract_id": 328,
+   "clause_type": "Non-Compete",
+   "n_chunks": 14,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 3,
+    "vector": 5,
+    "hybrid": 3,
+    "rerank": 6
+   },
+   "timings_ms": {
+    "bm25": 0.37,
+    "vector": 0.61,
+    "fusion": 0.01,
+    "rerank": 867.63,
+    "total": 868.61
+   }
+  },
+  {
+   "contract_id": 333,
+   "clause_type": "Ip Ownership Assignment",
+   "n_chunks": 10,
+   "n_relevant": 3,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": 7
+   },
+   "timings_ms": {
+    "bm25": 0.46,
+    "vector": 19.24,
+    "fusion": 0.01,
+    "rerank": 579.5,
+    "total": 599.21
+   }
+  },
+  {
+   "contract_id": 359,
+   "clause_type": "License Grant",
+   "n_chunks": 212,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 11,
+    "vector": 5,
+    "hybrid": 2,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.43,
+    "vector": 1.42,
+    "fusion": 0.04,
+    "rerank": 3026.53,
+    "total": 3028.43
+   }
+  },
+  {
+   "contract_id": 362,
+   "clause_type": "Governing Law",
+   "n_chunks": 73,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 10,
+    "hybrid": 2,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.35,
+    "vector": 0.93,
+    "fusion": 0.03,
+    "rerank": 3016.86,
+    "total": 3018.17
+   }
+  },
+  {
+   "contract_id": 362,
+   "clause_type": "Irrevocable Or Perpetual License",
+   "n_chunks": 73,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 3,
+    "hybrid": 2,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.38,
+    "vector": 16.5,
+    "fusion": 0.04,
+    "rerank": 3079.57,
+    "total": 3096.49
+   }
+  },
+  {
+   "contract_id": 370,
+   "clause_type": "Governing Law",
+   "n_chunks": 64,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.35,
+    "vector": 0.83,
+    "fusion": 0.03,
+    "rerank": 3052.04,
+    "total": 3053.25
+   }
+  },
+  {
+   "contract_id": 376,
+   "clause_type": "Expiration Date",
+   "n_chunks": 22,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 13,
+    "vector": 7,
+    "hybrid": 11,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.42,
+    "vector": 15.01,
+    "fusion": 0.02,
+    "rerank": 1307.12,
+    "total": 1322.57
+   }
+  },
+  {
+   "contract_id": 388,
+   "clause_type": "Joint Ip Ownership",
+   "n_chunks": 83,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.4,
+    "vector": 0.87,
+    "fusion": 0.04,
+    "rerank": 3062.96,
+    "total": 3064.27
+   }
+  },
+  {
+   "contract_id": 391,
+   "clause_type": "Uncapped Liability",
+   "n_chunks": 49,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.47,
+    "vector": 0.85,
+    "fusion": 0.02,
+    "rerank": 2917.94,
+    "total": 2919.28
+   }
+  },
+  {
+   "contract_id": 404,
+   "clause_type": "Insurance",
+   "n_chunks": 38,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.37,
+    "vector": 16.41,
+    "fusion": 0.03,
+    "rerank": 2111.04,
+    "total": 2127.85
+   }
+  },
+  {
+   "contract_id": 413,
+   "clause_type": "Warranty Duration",
+   "n_chunks": 91,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.43,
+    "vector": 16.99,
+    "fusion": 0.04,
+    "rerank": 3150.87,
+    "total": 3168.33
+   }
+  },
+  {
+   "contract_id": 430,
+   "clause_type": "Expiration Date",
+   "n_chunks": 13,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.41,
+    "vector": 0.71,
+    "fusion": 0.01,
+    "rerank": 739.3,
+    "total": 740.44
+   }
+  },
+  {
+   "contract_id": 433,
+   "clause_type": "Expiration Date",
+   "n_chunks": 12,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 9,
+    "vector": 1,
+    "hybrid": 4,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.34,
+    "vector": 0.62,
+    "fusion": 0.01,
+    "rerank": 652.98,
+    "total": 653.95
+   }
+  },
+  {
+   "contract_id": 440,
+   "clause_type": "Agreement Date",
+   "n_chunks": 6,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 3,
+    "vector": 4,
+    "hybrid": 3,
+    "rerank": 5
+   },
+   "timings_ms": {
+    "bm25": 0.33,
+    "vector": 0.66,
+    "fusion": 0.01,
+    "rerank": 322.17,
+    "total": 323.18
+   }
+  },
+  {
+   "contract_id": 460,
+   "clause_type": "Notice Period To Terminate Renewal",
+   "n_chunks": 141,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.38,
+    "vector": 14.84,
+    "fusion": 0.05,
+    "rerank": 2933.78,
+    "total": 2949.05
+   }
+  },
+  {
+   "contract_id": 473,
+   "clause_type": "Termination For Convenience",
+   "n_chunks": 28,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.41,
+    "vector": 16.95,
+    "fusion": 0.03,
+    "rerank": 1761.06,
+    "total": 1778.45
+   }
+  },
+  {
+   "contract_id": 481,
+   "clause_type": "Parties",
+   "n_chunks": 23,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 10,
+    "vector": 17,
+    "hybrid": 13,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.35,
+    "vector": 0.64,
+    "fusion": 0.02,
+    "rerank": 1378.28,
+    "total": 1379.29
+   }
+  },
+  {
+   "contract_id": 482,
+   "clause_type": "Effective Date",
+   "n_chunks": 31,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 3,
+    "vector": 5,
+    "hybrid": 2,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.34,
+    "vector": 0.72,
+    "fusion": 0.02,
+    "rerank": 1832.47,
+    "total": 1833.55
+   }
+  },
+  {
+   "contract_id": 488,
+   "clause_type": "Document Name",
+   "n_chunks": 23,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 9,
+    "vector": 5,
+    "hybrid": 5,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.31,
+    "vector": 0.65,
+    "fusion": 0.02,
+    "rerank": 1349.37,
+    "total": 1350.35
+   }
+  },
+  {
+   "contract_id": 493,
+   "clause_type": "Irrevocable Or Perpetual License",
+   "n_chunks": 47,
+   "n_relevant": 1,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 20,
+    "hybrid": 5,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.43,
+    "vector": 0.78,
+    "fusion": 0.03,
+    "rerank": 2691.31,
+    "total": 2692.55
+   }
+  },
+  {
+   "contract_id": 505,
+   "clause_type": "Insurance",
+   "n_chunks": 38,
+   "n_relevant": 2,
+   "first_relevant_rank": {
+    "bm25": 1,
+    "vector": 1,
+    "hybrid": 1,
+    "rerank": null
+   },
+   "timings_ms": {
+    "bm25": 0.35,
+    "vector": 0.78,
+    "fusion": 0.02,
+    "rerank": 2092.36,
+    "total": 2093.51
+   }
+  }
+ ]
+}

@@ -73,6 +73,17 @@ Per-stage latency on cpu (`Linux-6.17.0-1022-azure-x86_64-with-glibc2.39`), ms p
 
 This is the baseline the CI gate compares against (`evals/subsets/ci_50_baseline.json`). With only 50 cases, one case is 2 points; these values come from a small sample and are not a replacement for the full dev-split numbers above.
 
+### CI gate catches a broken retriever (Phase 4 acceptance)
+
+[PR #1](https://github.com/zliang2/contract_agent/pull/1) (closed, not merged) deliberately sorts reranker scores ascending, so generation would get the 8 lowest-scored candidates. In [run 42937905217](https://github.com/zliang2/contract_agent/actions/runs/42937905217), `test`, `web` and `docker` passed and `retrieval-gate` failed:
+
+```
+FAIL rerank recall@8: 0.160 (main 0.920, change -76.0 points) -- dropped more than 2 points
+```
+
+- **Report:** [`evals/reports/2026-11-11_dev_retrieval_c198014_ci_50.json`](../evals/reports/2026-11-11_dev_retrieval_c198014_ci_50.json) (PR merge commit `c198014`, clean tree, CI artifact)
+- BM25, vector and hybrid recall@8 are unchanged (0.800 / 0.760 / 0.860), because only the rerank stage was broken. The CI runner reproduced main's baseline exactly (rerank 0.920 on Linux x86-64, the same as on macOS), so the gate is not tripped by platform noise.
+
 ### Not tested
 
 - Whether a contract-domain or larger reranker would do better; whether cross-encoder truncation at 512 tokens costs recall.
