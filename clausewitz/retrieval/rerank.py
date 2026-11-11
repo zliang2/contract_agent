@@ -27,7 +27,8 @@ def rerank(
     scores = get_model().predict(
         [(question, text) for _, text in candidates], batch_size=BATCH_SIZE, show_progress_bar=False
     )
+    # DEMO BUG: ascending sort keeps the lowest-scored chunks.
     ranked = sorted(
-        zip((cid for cid, _ in candidates), scores, strict=True), key=lambda x: (x[1], x[0])  # DEMO BUG: ascending, keeps the worst chunks
+        zip((cid for cid, _ in candidates), scores, strict=True), key=lambda x: (x[1], x[0])
     )
     return [(cid, float(s)) for cid, s in ranked[:top_n]]
